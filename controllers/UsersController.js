@@ -1,5 +1,7 @@
 import sha1 from 'sha1';
+import { ObjectId } from 'mongodb';
 import dbClient from '../utils/db';
+import redisClient from '../utils/redis';
 
 class UsersController {
   // Create a new user.
@@ -20,12 +22,24 @@ class UsersController {
     // Hash password with the SHA-1 algorithm.
     const hashPassword = sha1(password);
 
-    // Save the use in the database.
+    // Save the user in the database.
     const newUser = await dbClient.usersCollection.insertOne({
       email,
       password: hashPassword,
     });
     return res.status(201).send({ id: newUser.insertedId, email });
+  }
+
+  // Retrieve the user based on the token.
+  static async getMe(req, res) {
+    const token = req.header('X-Token');
+    if (!token) return res.status(401).send({ error: 'Unauthorized' });
+    const key = `auth_${token}`;
+    const userId = await redisClient.get(key);
+    if (!userId) return res.status(401).send({ error: 'Unauthorized' });
+
+    const existingUser = await dbClient.usersCollection.findOne({ _id: ObjectId(userId) });
+    return res.status(200).send({ id: existingUser._id, email: existingUser.email });
   }
 }
 
