@@ -10,6 +10,7 @@ class AuthController {
     if (!b64auth) return res.status(401).send({ error: 'Unauthorized' });
 
     const [login, password] = Buffer.from(b64auth, 'base64').toString('utf-8').split(':');
+    if (!login || !password) return res.status(401).send({ error: 'Unauthorized' });
 
     const existingUser = await dbClient.usersCollection.findOne({ email: login });
     const hashPassword = sha1(password);
