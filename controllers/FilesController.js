@@ -83,6 +83,74 @@ class FilesController {
       parentId,
     });
   }
+
+  // Retrieve the file document based on the ID.
+  static async getShow(req, res) {
+    // Retrieve the user based on the token.
+    const token = req.header('X-Token');
+    if (!token) return res.status(401).send({ error: 'Unauthorized' });
+    const key = `auth_${token}`;
+    const userId = await redisClient.get(key);
+    if (!userId) return res.status(401).send({ error: 'Unauthorized' });
+
+    const user = await dbClient.usersCollection.findOne({ _id: ObjectId(userId) });
+
+    // Retrieve the file document based on the ID.
+    const { id } = req.params;
+    const filefound = await dbClient.filesCollection.findOne({
+      _id: ObjectId(id),
+      userId: user._id,
+    });
+
+    if (!filefound) return res.status(404).send({ error: 'Not found' });
+    return res.status(200).send({
+      id: filefound._id,
+      userId: filefound.userId,
+      name: filefound.name,
+      type: filefound.type,
+      isPublic: filefound.isPublic,
+      parentId: filefound.parentId,
+    });
+  }
+
+  //  Retrieve all users file documents for a specific parentId and with pagination.
+  static async getIndex(req, res) {
+    // Retrieve the user based on the token.
+    const token = req.header('X-Token');
+    if (!token) return res.status(401).send({ error: 'Unauthorized' });
+    const key = `auth_${token}`;
+    const userId = await redisClient.get(key);
+    if (!userId) return res.status(401).send({ error: 'Unauthorized' });
+
+    // Based on the query parameters parentId and page, return the list of file document.
+    const parentId = req.query.parentId || 0;
+    const page = req.query.page || 0;
+
+    const filesAggregate = parentId === 0 ? [
+      { $skip: page * 20 },
+      { $limit: 20 },
+    ] : [
+      { $match: { parentId } },
+      { $skip: page * 20 },
+      { $limit: 20 },
+    ];
+    const filesfound = await dbClient.filesCollection.aggregate(filesAggregate);
+    const filesArray = [];
+
+    await filesfound.forEach((item) => {
+      const fileItem = {
+        id: item._id,
+        userId: item.userId,
+        name: item.name,
+        type: item.type,
+        isPublic: item.isPublic,
+        parentId: item.parentId,
+      };
+      filesArray.push(fileItem);
+    });
+
+    return res.status(200).send(filesArray);
+  }
 }
 
 export default FilesController;
