@@ -243,31 +243,44 @@ class FilesController {
     const { isPublic } = filefound;
     const { userId } = filefound;
     const { type } = filefound;
+    let owner = false;
 
     // Retrieve the user based on the token.
     const token = req.header('X-Token');
-    if (token);
+    if (token) {
       const key = `auth_${token}`;
       const userID = await redisClient.get(key);
-      if (userID);
+      if (userID) {
         const user = await dbClient.usersCollection.findOne({ _id: ObjectId(userID) });
+        if (user) {
+          owner = user._id.toString() === userId.toString();
+        }
+      }
+    }
 
-    if (!user && !isPublic) {
+    if (!owner && !isPublic) {
       return res.status(404).send({ error: 'Not found' });
     }
     if (type === 'folder') {
       return res.status(400).send({ error: 'A folder doesn\'t have content' });
     }
 
-    const mimeType = contentType(filefound.name) || 'text/plain';
     const filePath = filefound.localPath;
-    console.log(filePath);
 
-    fs.readFile(filePath, 'utf-8', (err, fileContent) => {
-      if (err) res.status(400).json({ error: 'Unable to read contents of the file' });
+    try {
+      const fileContent = fs.readFileSync(filePath);
+      const mimeType = contentType(filefound.name);
       res.setHeader('Content-Type', mimeType);
       return res.status(200).send(fileContent);
-    });
+    } catch (error) {
+      return res.status(404).send({ error: 'Not found' });
+    }
+
+    // fs.readFile(filePath, 'utf-8', (err, fileContent) => {
+    //   if (err) res.status(400).json({ error: 'Unable to read contents of the file' });
+    //   res.setHeader('Content-Type', mimeType);
+    //   return res.status(200).send(fileContent);
+    // });
   }
 }
 
