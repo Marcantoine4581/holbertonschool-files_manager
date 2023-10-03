@@ -246,14 +246,13 @@ class FilesController {
 
     // Retrieve the user based on the token.
     const token = req.header('X-Token');
-    if (!token) return res.status(401).send({ error: 'Unauthorized' });
-    const key = `auth_${token}`;
-    const userID = await redisClient.get(key);
-    if (!userID) return res.status(401).send({ error: 'Unauthorized' });
+    if (token);
+      const key = `auth_${token}`;
+      const userID = await redisClient.get(key);
+      if (userID);
+        const user = await dbClient.usersCollection.findOne({ _id: ObjectId(userID) });
 
-    const user = await dbClient.usersCollection.findOne({ _id: ObjectId(userID) });
-
-    if (!user && !isPublic && !userId) {
+    if (!user && !isPublic) {
       return res.status(404).send({ error: 'Not found' });
     }
     if (type === 'folder') {
@@ -266,7 +265,7 @@ class FilesController {
 
     fs.readFile(filePath, 'utf-8', (err, fileContent) => {
       if (err) res.status(400).json({ error: 'Unable to read contents of the file' });
-      res.setheader('Content-Type', mimeType);
+      res.setHeader('Content-Type', mimeType);
       return res.status(200).send(fileContent);
     });
   }
